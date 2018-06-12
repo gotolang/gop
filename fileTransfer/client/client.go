@@ -4,33 +4,41 @@ import (
 	"fmt"
 	"log"
 	"time"
-	"github.com/burntsushi/toml"
+
+	"github.com/BurntSushi/toml"
 )
 
+type downloadConfig struct {
+	Title   string
+	Servers map[string]server
+	Client  client
+}
+
 type server struct {
-	ip string
-	port int
+	IP   string
+	Port int
 }
 
 type client struct {
-	app string
-	lastUpdateAt time.Time
-}
-
-type downloadConfig struct {
-	serverConf server
-	clientConf client
+	App           string
+	DownloadFrom  string
+	LastUpdatedAt time.Time
 }
 
 func checkErr(err error) {
-	log.Fatal(err)
-	return
+	if err != nil {
+		fmt.Println(err)
+		log.Fatal(err)
+	}
 }
 
 func main() {
 	var downloadConf downloadConfig
-	r, err := toml.DecodeFile("download.ini", &downloadConf)
+	_, err := toml.DecodeFile("download.toml", &downloadConf)
 	checkErr(err)
-	fmt.Println(r)
-	fmt.Println(downloadConf)
+	fmt.Println(downloadConf.Client.App)
+	fmt.Println(downloadConf.Client.DownloadFrom)
+	fmt.Println(downloadConf.Servers["beta"].IP)
+	fmt.Println(downloadConf.Servers["beta"].Port)
+
 }

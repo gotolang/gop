@@ -1,0 +1,21 @@
+# 自动下载配置文件
+
+title = "Download TOML" 
+
+[servers]
+    [servers.alpha]
+    ip = "172.42.9.188"
+    port = 9090
+
+    [servers.beta]
+    ip = "172.42.9.188"
+    port = 9090
+
+    [servers.omega]
+    ip = "172.42.9.188"
+    port = 9090
+
+[client]
+app = "PHSTOCK"
+downloadFrom = "omega"
+lastUpdatedAt = 2018-06-12T22:00:00Z
