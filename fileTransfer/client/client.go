@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -40,5 +41,16 @@ func main() {
 	fmt.Println(downloadConf.Client.DownloadFrom)
 	fmt.Println(downloadConf.Servers["beta"].IP)
 	fmt.Println(downloadConf.Servers["beta"].Port)
+
+	ip := downloadConf.Servers["beta"].IP
+	port := downloadConf.Servers["beta"].Port
+	app := downloadConf.Client.App
+
+	// 获取文件个数
+
+	//
+	url := "http://" + ip + string(port) + "/download?app=" + app
+	resp, err := http.Get(url)
+	checkErr(err)
 
 }

@@ -42,12 +42,12 @@ func upload(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func howManyFiles(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func download(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
 
-	} else {
-
-	}
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
