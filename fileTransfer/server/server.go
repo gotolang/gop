@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -47,6 +48,59 @@ func howManyFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func download(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		r.ParseForm()
+		appName := r.Form.Get("app")
+		appLoc := "/Users/damao/Downloads/applist/"
+		// fmt.Println("ioutil read file " + appLoc + appName)
+		// f, err := ioutil.ReadFile(appLoc + appName)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	return
+		// }
+		// fmt.Println("Start write to client...")
+		// _, err = w.Write(f)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	return
+		// }
+		file, err := os.Open(appLoc + appName)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+		_, err = io.Copy(w, file)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	} else {
+
+	}
+}
+
+func listApps(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		fmt.Println("=====================start=======================")
+		fmt.Println(time.Now())
+		fmt.Println(r.Host + " request app list...")
+
+		zips, err := ioutil.ReadDir("/Users/damao/Downloads/applist")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		for i, v := range zips {
+			fmt.Println(i, v.Name())
+			w.Write([]byte(v.Name()))
+			if i != len(zips)-1 {
+				w.Write([]byte(";"))
+			}
+			// w.Write([]byte(v.Name() + " "))
+		}
+		fmt.Println("====================end=========================")
+	}
 
 }
 
@@ -59,6 +113,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	http.HandleFunc("/applist", listApps)
 	http.HandleFunc("/login", login)
 	http.HandleFunc("/download", download)
 	http.HandleFunc("/upload", upload)
