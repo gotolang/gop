@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"fmt"
@@ -17,6 +18,29 @@ func checkErr(err error, action string) {
 	if err != nil {
 		log.Println(action + " error")
 		panic(err)
+	}
+}
+
+func unzip(filename string) {
+	zipReader, err := zip.OpenReader(filename)
+	checkErr(err, "Zip open reader")
+	defer zipReader.Close()
+
+	for _, file := range zipReader.Reader.File {
+		fmt.Println(file.Name)
+
+		zipfile, err := file.Open()
+		checkErr(err, "zip file open")
+		defer zipfile.Close()
+
+		osfile, err := os.Create(file.Name)
+		checkErr(err, "zip create file")
+		defer osfile.Close()
+
+		_, err = io.Copy(osfile, zipfile)
+		checkErr(err, "zip io copy")
+
+		fmt.Println("Extract complete.")
 	}
 }
 
@@ -68,4 +92,8 @@ func main() {
 	_, err = io.Copy(file, respAppDownload.Body)
 	checkErr(err, "io copy file")
 	fmt.Println("Download complete.")
+
+	fmt.Println("Start extract files...")
+	unzip(appName)
+
 }
