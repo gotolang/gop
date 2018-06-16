@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,11 +15,9 @@ import (
 func checkErr(err error, action string) {
 	// fmt.Println(err)
 	if err != nil {
-		fmt.Println(action + " error")
+		log.Println(action + " error")
 		panic(err)
 	}
-
-	// os.Exit(-1)
 }
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 	respAppList.Body.Read(p)
 	var apps map[int64]string
 	apps = make(map[int64]string)
-	appsFromServer := strings.Split(string(p), ";")
+	appsFromServer := strings.Split(string(bytes.Trim(p, "\x00")), ";")
 	// fmt.Println(len(appsFromServer))
 	for i, v := range appsFromServer {
 		fmt.Println(i, v)
@@ -48,22 +48,24 @@ func main() {
 	checkErr(err, "ParseInt")
 	appName, ok := apps[appIndex]
 	if !ok {
-		fmt.Println("index does not exist")
+		log.Println("index does not exist")
 		return
 	}
+
 	urlAppDownload := "http://localhost:9090/download?app=" + appName
 	// urlAppDownload := "http://172.42.1.221:9999/download"
-
+	// fmt.Println(urlAppDownload)
 	respAppDownload, err := http.Get(urlAppDownload)
 	checkErr(err, "GET download app")
+	// fmt.Println(respAppDownload.StatusCode)
 	defer respAppDownload.Body.Close()
 
-	f, err := os.Create(appName)
+	file, err := os.Create(appName)
 	// f, err := os.OpenFile(appName, os.O_RDONLY|os.O_CREATE, 0666)
 	checkErr(err, "Create file")
-	defer f.Close()
+	defer file.Close()
 
-	_, err = io.Copy(f, respAppDownload.Body)
+	_, err = io.Copy(file, respAppDownload.Body)
 	checkErr(err, "io copy file")
 	fmt.Println("Download complete.")
 }

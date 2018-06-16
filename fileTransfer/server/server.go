@@ -66,13 +66,15 @@ func download(w http.ResponseWriter, r *http.Request) {
 		// }
 		file, err := os.Open(appLoc + appName)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 		defer file.Close()
 		_, err = io.Copy(w, file)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 	} else {
