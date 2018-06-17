@@ -1,9 +1,14 @@
 package main
 
 import (
+	"archive/zip"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -26,6 +31,8 @@ type client struct {
 	LastUpdatedAt time.Time
 }
 
+var app string
+
 func checkErr(err error) {
 	if err != nil {
 		fmt.Println(err)
@@ -33,24 +40,104 @@ func checkErr(err error) {
 	}
 }
 
-func main() {
+func decodeTOML(tomlfile string) (string, error) {
 	var downloadConf downloadConfig
-	_, err := toml.DecodeFile("download.toml", &downloadConf)
+	_, err := toml.DecodeFile(tomlfile, &downloadConf)
 	checkErr(err)
-	fmt.Println(downloadConf.Client.App)
-	fmt.Println(downloadConf.Client.DownloadFrom)
-	fmt.Println(downloadConf.Servers["beta"].IP)
-	fmt.Println(downloadConf.Servers["beta"].Port)
+	// fmt.Println(downloadConf.Client.App)
+	// fmt.Println(downloadConf.Client.DownloadFrom)
+	// fmt.Println(downloadConf.Servers["beta"].IP)
+	// fmt.Println(downloadConf.Servers["beta"].Port)
 
-	ip := downloadConf.Servers["beta"].IP
-	port := downloadConf.Servers["beta"].Port
-	app := downloadConf.Client.App
+	servers := downloadConf.Servers
+	dst := downloadConf.Client.DownloadFrom
 
-	// 获取文件个数
+	ipAndPort, ok := servers[dst]
 
-	//
-	url := "http://" + ip + string(port) + "/download?app=" + app
+	if !ok {
+		return "", errors.New(dst + " does not exist")
+	}
+
+	ip := ipAndPort.IP
+	port := strconv.Itoa(ipAndPort.Port)
+	app = downloadConf.Client.App
+
+	url := "http://" + ip + ":" + port + "/download?app=" + app
+
+	return url, nil
+}
+
+func getZipFromServer(url string) (io.Reader, error) {
 	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return resp.Body, nil
+}
+
+func unZip2Localfile(respBody io.Reader) (bool, error) {
+	//createLocalfile
+	localZip, err := os.Create(app + ".zip")
+	if err != nil {
+		return false, err
+	}
+	defer localZip.Close()
+
+	//copy resp to localfile
+	_, err = io.Copy(localZip, respBody)
+	if err != nil {
+		return false, err
+	}
+
+	//unzip file from server
+	//is directory or file
+	//if dir then mkdir and it's files
+	rc, err := zip.OpenReader(localZip.Name())
+	if err != nil {
+		return false, err
+	}
+	defer rc.Close()
+
+	for _, file := range rc.Reader.File {
+		frc, err := file.Open()
+		if err != nil {
+			return false, err
+		}
+		defer frc.Close()
+
+		if file.FileInfo().IsDir() {
+			os.MkdirAll("./", file.Mode())
+		} else {
+			lf, err := os.Create(file.Name)
+			if err != nil {
+				return false, err
+			}
+
+			defer lf.Close()
+
+			_, err = io.Copy(lf, frc)
+			if err != nil {
+				return false, err
+			}
+		}
+	}
+
+	return true, nil
+}
+
+func main() {
+
+	tomlFile := "download.toml"
+	url, err := decodeTOML(tomlFile)
 	checkErr(err)
+
+	respBody, err := getZipFromServer(url)
+	checkErr(err)
+
+	b, err := unZip2Localfile(respBody)
+	checkErr(err)
+
+	fmt.Println(b)
 
 }
