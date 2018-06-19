@@ -1,14 +1,16 @@
 package main
 
 import (
-	"database/sql"
-	"log"
-	"strconv"
 	"bufio"
 	"bytes"
+	"database/sql"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	_ "github.com/mattn/go-oci8"
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -27,9 +29,9 @@ func gbk2Utf8(str []byte) (utf8Str []byte, err error) {
 
 func userInteractive(db *sql.DB) (deptCode string, wardCode string, deptName string, err error) {
 	// input name of dept
-	fmt.Print("Input code to search:")
+	fmt.Print("输入拼音码查询科室:")
 	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan() 
+	scanner.Scan()
 
 	deptQ := `
 	select a.dept_code, b.ward_code, a.dept_name from dept_dict a, dept_vs_ward b 
@@ -38,7 +40,7 @@ func userInteractive(db *sql.DB) (deptCode string, wardCode string, deptName str
 	`
 
 	// search dept_code according to name of dept
-	rows, err := db.Query(deptQ, scanner.Text())
+	rows, err := db.Query(deptQ, strings.ToUpper(scanner.Text()))
 	if err != nil {
 		log.Println(err)
 		return "", "", "", err
@@ -47,6 +49,7 @@ func userInteractive(db *sql.DB) (deptCode string, wardCode string, deptName str
 	defer rows.Close()
 
 	var depts map[string][2]string
+	depts = make(map[string][2]string)
 
 	for rows.Next() {
 		var deptCode, wardCode, deptName string
@@ -62,7 +65,7 @@ func userInteractive(db *sql.DB) (deptCode string, wardCode string, deptName str
 		}
 		deptName = string(dn)
 		// map the result (map[int]string)
-		depts[deptCode] = [wardCode, deptName]
+		depts[deptCode] = [2]string{wardCode, deptName}
 		fmt.Println(wardCode, deptCode, deptName)
 	}
 	err = Rows.Err()
@@ -70,14 +73,24 @@ func userInteractive(db *sql.DB) (deptCode string, wardCode string, deptName str
 		log.Println(err)
 		return "", "", "", err
 	}
+
+	if len(depts) == 0 {
+		return "", "", "", errors.New("没有查询到科室，请重新输入拼音码")
+	}
+
+	fmt.Println()
+	for i, v := range depts {
+		fmt.Println(i, v[1])
+	}
+
 	// user select the dept
-	fmt.Print("input dept code:")
+	fmt.Print("\n请选择科室代码:")
 	scanner.Scan()
 	dept4Update := scanner.Text()
 	wardAndName, ok := depts[dept4Update]
 	if !ok {
-		log.Println("dept code does not exist")
-		continue
+		log.Println("科室代码不存在")
+		return "", "", "", errors.New("科室代码不存在！")
 	}
 	return dept4Update, wardAndName[0], wardAndName[1], nil
 }
@@ -92,16 +105,16 @@ func updateLSOrderStatus(db *sql.DB, deptCode string, wardCode string) (int64, e
 	r, err := db.Exec(sqlOrder, wardCode, deptCode)
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return 0, err
 	}
 
 	affectedRows, err := r.RowsAffected()
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return 0, err
 	}
 	return affectedRows, nil
-} 
+}
 
 func updateCQOrderStatus(db *sql.DB, deptCode string, wardCode string) (int64, error) {
 	sqlOrder := `
@@ -113,13 +126,13 @@ func updateCQOrderStatus(db *sql.DB, deptCode string, wardCode string) (int64, e
 	r, err = db.Exec(sqlOrder, wardCode, deptCode)
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return 0, err
 	}
 
 	affectedRows, err = r.RowsAffected()
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return 0, err
 	}
 	return affectedRows, nil
 }
@@ -129,19 +142,22 @@ func main() {
 	db, err := sql.Open("oci8", "golang/golang@dbtest")
 	if err != nil {
 		log.Println(err)
+		fmt.Scanln()
 		return
 	}
 	defer db.Close()
 
-	wardCode, deptCode, deptName, err := userInteractive(db)
+	wardCode, deptCode, _, err := userInteractive(db)
 	if err != nil {
 		log.Println(err)
+		fmt.Scanln()
 		return
 	}
 
 	affectedRows, err := updateLSOrderStatus(db, wardCode, deptCode)
 	if err != nil {
 		log.Println(err)
+		fmt.Scanln()
 		return
 	}
 	fmt.Println("临时医嘱影响行数：" + strconv.FormatInt(affectedRows, 10))
@@ -149,7 +165,9 @@ func main() {
 	affectedRows, err = updateCQOrderStatus(db, wardCode, deptCode)
 	if err != nil {
 		log.Println(err)
+		fmt.Scanln()
 		return
 	}
 	fmt.Println("长期医嘱影响行数：" + strconv.FormatInt(affectedRows, 10))
+	fmt.Scanln()
 }
