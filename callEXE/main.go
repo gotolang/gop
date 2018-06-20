@@ -19,6 +19,7 @@ func main() {
 		}
 	} else if runtime.GOOS == "darwin" {
 		fmt.Println("macos")
+		fmt.Println(runtime.GOARCH)
 		cmd := exec.Command("/Applications/Postman.app", "")
 		err := cmd.Start()
 		if err != nil {
