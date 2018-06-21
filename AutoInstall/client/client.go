@@ -5,115 +5,96 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
-	"time"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 
-	"github.com/BurntSushi/toml"
+	ole "github.com/go-ole/go-ole"
+	"github.com/go-ole/go-ole/oleutil"
+	"github.com/manifoldco/promptui"
 )
 
-type downloadConfig struct {
-	Title   string
-	Servers map[string]server
-	Client  client
-}
-
-type server struct {
-	IP   string
-	Port int
-}
-
-type client struct {
-	App           string
-	DownloadFrom  string
-	LastUpdatedAt time.Time
-}
-
-var app string
-
-func checkErr(err error) {
+func checkErrAtMainFunc(err error) {
 	if err != nil {
-		fmt.Println(err)
-		log.Fatal(err)
+		log.Println(err)
+		fmt.Scanln()
 	}
 }
 
-func decodeTOML(tomlfile string) (string, error) {
-	var downloadConf downloadConfig
-	_, err := toml.DecodeFile(tomlfile, &downloadConf)
-	checkErr(err)
-	// fmt.Println(downloadConf.Client.App)
-	// fmt.Println(downloadConf.Client.DownloadFrom)
-	// fmt.Println(downloadConf.Servers["beta"].IP)
-	// fmt.Println(downloadConf.Servers["beta"].Port)
-
-	servers := downloadConf.Servers
-	dst := downloadConf.Client.DownloadFrom
-
-	ipAndPort, ok := servers[dst]
-
-	if !ok {
-		return "", errors.New(dst + " does not exist")
+func openINI(path string) {
+	cmd := exec.Command("cmd", "/C", "start", path)
+	err := cmd.Start()
+	if err != nil {
+		return
 	}
-
-	ip := ipAndPort.IP
-	port := strconv.Itoa(ipAndPort.Port)
-	app = downloadConf.Client.App
-
-	url := "http://" + ip + ":" + port + "/download?app=" + app
-
-	return url, nil
 }
 
-func getZipFromServer(url string) (io.Reader, error) {
-	resp, err := http.Get(url)
+func genShortcut(goos string, arch string) error {
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED|ole.COINIT_SPEED_OVER_MEMORY)
+	defer ole.CoUninitialize()
+
+	oleShellObject, err := oleutil.CreateObject("WScript.Shell")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer resp.Body.Close()
-	return resp.Body, nil
+	defer oleShellObject.Release()
+	wshell, err := oleShellObject.QueryInterface(ole.IID_IDispatch)
+	if err != nil {
+		return err
+	}
+	defer wshell.Release()
+	cs, err := oleutil.CallMethod(wshell, "CreateShortcut", dst)
+	idispatch := cs.ToIDispatch()
+	oleutil.PutProperty(idispatch, "TargetPath", src)
+	oleutil.CallMethod(idispatch, "Save")
+	return nil
 }
 
-func unZip2Localfile(respBody io.Reader) (bool, error) {
-	//createLocalfile
-	localZip, err := os.Create(app + ".zip")
-	if err != nil {
-		return false, err
-	}
-	defer localZip.Close()
+func unzipLocalfile(unzip2Dir string, file *os.File, goos string) (bool, error) {
 
-	//copy resp to localfile
-	_, err = io.Copy(localZip, respBody)
-	if err != nil {
-		return false, err
-	}
+	// fileInfo, err := file.Stat()
+	// if err != nil {
+	// 	return false, err
+	// }
 
-	//unzip file from server
-	//is directory or file
-	//if dir then mkdir and it's files
-	rc, err := zip.OpenReader(localZip.Name())
+	// var unzipDir string
+	// if goos == "windows" {
+	// 	unzipDir = unzip2Dir + fileInfo.Name() + "/"
+	// } else {
+	// 	unzipDir = unzip2Dir + fileInfo.Name() + "\\"
+	// }
+	rc, err := zip.OpenReader(file.Name())
 	if err != nil {
 		return false, err
 	}
 	defer rc.Close()
 
-	for _, file := range rc.Reader.File {
-		frc, err := file.Open()
+	for i, f := range rc.Reader.File {
+		fmt.Println(i, f)
+		frc, err := f.Open()
 		if err != nil {
 			return false, err
 		}
 		defer frc.Close()
 
-		if file.FileInfo().IsDir() {
-			os.MkdirAll("./", file.Mode())
+		fpath := filepath.Join(unzip2Dir, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(fpath, f.Mode())
 		} else {
-			lf, err := os.Create(file.Name)
+			os.MkdirAll(filepath.Dir(fpath), f.Mode())
+			lf, err := os.Create(fpath)
 			if err != nil {
 				return false, err
 			}
-
 			defer lf.Close()
 
 			_, err = io.Copy(lf, frc)
@@ -121,23 +102,139 @@ func unZip2Localfile(respBody io.Reader) (bool, error) {
 				return false, err
 			}
 		}
+
 	}
 
 	return true, nil
 }
 
+func download(url string, dir string, app string, goos string) (*os.File, error) {
+	resp, err := http.Get(url + app)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var file *os.File
+	if goos == "windows" {
+		file, err = os.Create(dir + "\\" + app)
+	} else {
+		file, err = os.Create(dir + "/" + app)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	// defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func showApps(apps []string) (index int, result string, err error) {
+
+	// templates := promptui.SelectTemplates{
+	// 	Active:   `👉  {{ .Title | cyan | bold }}`,
+	// 	Inactive: `   {{ .Title | cyan }}`,
+	// 	Selected: `{{ "✔" | green | bold }} {{ "Recipe" | bold }}: {{ .Title | cyan }}`,
+	// }
+
+	list := promptui.Select{
+		Label: "请选择要安装的程序",
+		Items: apps,
+		// Templates: &templates,
+	}
+	index, result, err = list.Run()
+	if err != nil {
+		return 0, "", err
+	}
+	return index, result, nil
+}
+
+func listApps(url string) (apps []string, err error) {
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	con, err := ioutil.ReadAll(resp.Body)
+
+	// var rb []byte
+	// _, err = resp.Body.Read(rb)
+
+	if err != nil {
+		return nil, err
+	}
+	if len(con) == 0 {
+		return nil, errors.New("程序列表为空")
+	}
+
+	apps = strings.Split(string(con), ";")
+
+	return apps, nil
+}
+
+func areYouReady(url string) (index int, result string, err error) {
+	propmt := promptui.Select{
+		Label: "是否从 " + url + " 安装程序？",
+		Items: []string{"是", "否"},
+	}
+	index, result, err = propmt.Run()
+	if err != nil {
+		return 0, "", err
+	}
+	return index, result, nil
+
+}
+
 func main() {
 
-	tomlFile := "download.toml"
-	url, err := decodeTOML(tomlFile)
-	checkErr(err)
+	operationSystem := runtime.GOOS
+	architecture := runtime.GOARCH
+	// url := "http://172.42.1.221:9090"
+	url := "http://localhost:9090"
+	url4ListApps := url + "/applist"
+	url4Download := url + "/download?app="
+	var download2Dir string
+	var unzip2Dir string
+	if operationSystem == "windows" {
+		download2Dir = "c:\\"
+		unzip2Dir = "c:\\"
+	} else {
+		download2Dir = "/Users/damao/"
+		unzip2Dir = "/Users/damao/"
+	}
 
-	respBody, err := getZipFromServer(url)
-	checkErr(err)
+	_, result, err := areYouReady(url)
+	checkErrAtMainFunc(err)
+	if result == "否" {
+		os.Exit(0)
+	}
 
-	b, err := unZip2Localfile(respBody)
-	checkErr(err)
+	var apps []string
+	// apps = make([]string, 20)
+	apps, err = listApps(url4ListApps)
+	checkErrAtMainFunc(err)
+	if apps == nil {
+		os.Exit(0)
+	}
 
-	fmt.Println(b)
+	_, result, err = showApps(apps)
+	checkErrAtMainFunc(err)
+
+	file, err := download(url4Download, download2Dir, result, operationSystem)
+	checkErrAtMainFunc(err)
+	defer file.Close()
+
+	_, err = unzipLocalfile(unzip2Dir, file, operationSystem)
+	checkErrAtMainFunc(err)
+
+	err = genShortcut(operationSystem, architecture)
 
 }
