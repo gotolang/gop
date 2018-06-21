@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"database/sql"
 	"errors"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/manifoldco/promptui"
 	_ "github.com/mattn/go-oci8"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
@@ -29,9 +29,17 @@ func gbk2Utf8(str []byte) (utf8Str []byte, err error) {
 
 func userInteractive(db *sql.DB) (deptCode string, wardCode string, deptName string, err error) {
 	// input name of dept
-	fmt.Print("输入拼音码查询科室:")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
+	// fmt.Print("输入拼音码查询科室:")
+	// scanner := bufio.NewScanner(os.Stdin)
+	// scanner.Scan()
+	prompt := promptui.Prompt{
+		Label: "输入拼音码",
+	}
+
+	result, err := prompt.Run()
+	if err != nil {
+		return "", "", "", err
+	}
 
 	deptQ := `
 	select a.dept_code, b.ward_code, a.dept_name from dept_dict a, dept_vs_ward b 
@@ -40,7 +48,7 @@ func userInteractive(db *sql.DB) (deptCode string, wardCode string, deptName str
 	`
 
 	// search dept_code according to name of dept
-	rows, err := db.Query(deptQ, strings.ToUpper(scanner.Text()))
+	rows, err := db.Query(deptQ, strings.ToUpper(result))
 	if err != nil {
 		log.Println(err)
 		return "", "", "", err
