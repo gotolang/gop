@@ -52,9 +52,9 @@ func genShortcut(goos string, arch string) error {
 		return err
 	}
 	defer wshell.Release()
-	cs, err := oleutil.CallMethod(wshell, "CreateShortcut", dst)
+	cs, err := oleutil.CallMethod(wshell, "CreateShortcut", "dst")
 	idispatch := cs.ToIDispatch()
-	oleutil.PutProperty(idispatch, "TargetPath", src)
+	oleutil.PutProperty(idispatch, "TargetPath", "src")
 	oleutil.CallMethod(idispatch, "Save")
 	return nil
 }

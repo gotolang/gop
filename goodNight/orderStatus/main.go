@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"database/sql"
 	"errors"
@@ -11,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/manifoldco/promptui"
 	_ "github.com/mattn/go-oci8"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
@@ -29,17 +29,17 @@ func gbk2Utf8(str []byte) (utf8Str []byte, err error) {
 
 func userInteractive(db *sql.DB) (deptCode string, wardCode string, deptName string, err error) {
 	// input name of dept
-	// fmt.Print("输入拼音码查询科室:")
-	// scanner := bufio.NewScanner(os.Stdin)
-	// scanner.Scan()
-	prompt := promptui.Prompt{
-		Label: "输入拼音码",
-	}
+	fmt.Print("输入拼音码查询科室:")
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	// prompt := promptui.Prompt{
+	// 	Label: "输入拼音码",
+	// }
 
-	result, err := prompt.Run()
-	if err != nil {
-		return "", "", "", err
-	}
+	// result, err := prompt.Run()
+	// if err != nil {
+	// 	return "", "", "", err
+	// }
 
 	deptQ := `
 	select a.dept_code, b.ward_code, a.dept_name from dept_dict a, dept_vs_ward b 
@@ -76,7 +76,7 @@ func userInteractive(db *sql.DB) (deptCode string, wardCode string, deptName str
 		depts[deptCode] = [2]string{wardCode, deptName}
 		fmt.Println(wardCode, deptCode, deptName)
 	}
-	err = Rows.Err()
+	err = rows.Err()
 	if err != nil {
 		log.Println(err)
 		return "", "", "", err
@@ -131,13 +131,13 @@ func updateCQOrderStatus(db *sql.DB, deptCode string, wardCode string) (int64, e
 	  and d.repeat_indicator = 1
 	  and d.patient_id in (select patient_id from pats_in_hospital p where p.ward_code = :1 and p.dept_code = :2)`
 
-	r, err = db.Exec(sqlOrder, wardCode, deptCode)
+	r, err := db.Exec(sqlOrder, wardCode, deptCode)
 	if err != nil {
 		log.Println(err)
 		return 0, err
 	}
 
-	affectedRows, err = r.RowsAffected()
+	affectedRows, err := r.RowsAffected()
 	if err != nil {
 		log.Println(err)
 		return 0, err
