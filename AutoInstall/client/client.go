@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -26,15 +27,20 @@ func checkErrAtMainFunc(err error) {
 	}
 }
 
-func openINI(path string) {
-	cmd := exec.Command("cmd", "/C", "start", path)
+func openINI(path string, filename string) error {
+	iniPath := filepath.Join(path, filename+"\\"+filename+".ini")
+	cmd := exec.Command("cmd", "/C", "start", iniPath)
 	err := cmd.Start()
 	if err != nil {
-		return
+		return err
 	}
+	return nil
 }
 
-func genShortcut(goos string, arch string) error {
+func genShortcut(goos, arch, user, path, dirname string) error {
+
+	// win7 : C:\Users\Administrator\Desktop
+	// winxp: C:\Documents and Settings\Administrator\桌面
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -61,25 +67,14 @@ func genShortcut(goos string, arch string) error {
 
 func unzipLocalfile(unzip2Dir string, file *os.File, goos string) (bool, error) {
 
-	// fileInfo, err := file.Stat()
-	// if err != nil {
-	// 	return false, err
-	// }
-
-	// var unzipDir string
-	// if goos == "windows" {
-	// 	unzipDir = unzip2Dir + fileInfo.Name() + "/"
-	// } else {
-	// 	unzipDir = unzip2Dir + fileInfo.Name() + "\\"
-	// }
 	rc, err := zip.OpenReader(file.Name())
 	if err != nil {
 		return false, err
 	}
 	defer rc.Close()
 
-	for i, f := range rc.Reader.File {
-		fmt.Println(i, f)
+	for _, f := range rc.Reader.File {
+		fmt.Println("file in zip: ", f.Name)
 		frc, err := f.Open()
 		if err != nil {
 			return false, err
@@ -231,10 +226,22 @@ func main() {
 	file, err := download(url4Download, download2Dir, result, operationSystem)
 	checkErrAtMainFunc(err)
 	defer file.Close()
+	fmt.Println("Download complete...")
 
 	_, err = unzipLocalfile(unzip2Dir, file, operationSystem)
 	checkErrAtMainFunc(err)
+	fmt.Println("Unzip complete...")
 
-	err = genShortcut(operationSystem, architecture)
+	dirName := strings.TrimPrefix(strings.TrimSuffix(file.Name(), ".zip"), "c:\\\\")
+	err = openINI(unzip2Dir, dirName)
+	checkErrAtMainFunc(err)
+
+	osuser, err := user.Current()
+	checkErrAtMainFunc(err)
+
+	err = genShortcut(operationSystem, architecture, osuser.Username, unzip2Dir, dirName)
+
+	fmt.Println(osuser.Username)
+	fmt.Println(architecture)
 
 }
