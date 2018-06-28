@@ -18,6 +18,7 @@ import (
 	ole "github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
 	"github.com/manifoldco/promptui"
+	"golang.org/x/sys/windows/registry"
 )
 
 func checkErrAtMainFunc(err error) {
@@ -37,7 +38,7 @@ func openINI(path string, filename string) error {
 	return nil
 }
 
-func genShortcut(goos, arch, user, path, dirname string) error {
+func genShortcut(goos, arch, user, path, dirname, deskPath string) error {
 
 	// win7 : C:\Users\Administrator\Desktop
 	// winxp: C:\Documents and Settings\Administrator\桌面
@@ -58,9 +59,18 @@ func genShortcut(goos, arch, user, path, dirname string) error {
 		return err
 	}
 	defer wshell.Release()
-	cs, err := oleutil.CallMethod(wshell, "CreateShortcut", "dst")
+
+	var dst, src string
+
+	dst = deskPath + "\\phstock.lnk"
+	src = filepath.Join(path, dirname+"\\"+"phstock.exe")
+
+	cs, err := oleutil.CallMethod(wshell, "CreateShortcut", dst)
+	if err != nil {
+		return err
+	}
 	idispatch := cs.ToIDispatch()
-	oleutil.PutProperty(idispatch, "TargetPath", "src")
+	oleutil.PutProperty(idispatch, "TargetPath", src)
 	oleutil.CallMethod(idispatch, "Save")
 	return nil
 }
@@ -188,19 +198,64 @@ func areYouReady(url string) (index int, result string, err error) {
 
 }
 
+func sysInfo() (oSys string, arch string, osuser string, deskPath string, err error) {
+	// operationSystem := runtime.GOOS
+	arch = runtime.GOARCH
+	osu, err := user.Current()
+	if err != nil {
+		log.Println("get os current user")
+		return "", "", "", "", err
+	}
+	osuser = osu.Username
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", registry.QUERY_VALUE)
+	if err != nil {
+		log.Println("registry open SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion ")
+		return "", "", "", "", err
+	}
+	defer k.Close()
+
+	v, _, err := k.GetStringValue("ProductName")
+	if err != nil {
+		log.Println("registry GetStringValue ProductName")
+		return "", "", "", "", err
+	}
+	oSys = v
+
+	l, err := registry.OpenKey(registry.CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders", registry.QUERY_VALUE)
+	if err != nil {
+		log.Println("registry open SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders ")
+		return "", "", "", "", err
+	}
+	defer l.Close()
+	v, _, err = l.GetStringValue("Desktop")
+	if err != nil {
+		log.Println("registry GetStringValue Desktop")
+		return "", "", "", "", err
+	}
+	deskPath = v
+	return oSys, arch, osuser, deskPath, nil
+
+}
+
 func main() {
 
 	operationSystem := runtime.GOOS
-	architecture := runtime.GOARCH
+
 	// url := "http://172.42.1.221:9090"
 	url := "http://localhost:9090"
 	url4ListApps := url + "/applist"
 	url4Download := url + "/download?app="
+
 	var download2Dir string
 	var unzip2Dir string
+	var oSys, arch, osuser, deskPath string
+	var err error
+
 	if operationSystem == "windows" {
 		download2Dir = "c:\\"
 		unzip2Dir = "c:\\"
+		oSys, arch, osuser, deskPath, err = sysInfo()
+		checkErrAtMainFunc(err)
 	} else {
 		download2Dir = "/Users/damao/"
 		unzip2Dir = "/Users/damao/"
@@ -236,12 +291,7 @@ func main() {
 	err = openINI(unzip2Dir, dirName)
 	checkErrAtMainFunc(err)
 
-	osuser, err := user.Current()
+	err = genShortcut(oSys, arch, osuser, unzip2Dir, dirName, deskPath)
 	checkErrAtMainFunc(err)
-
-	err = genShortcut(operationSystem, architecture, osuser.Username, unzip2Dir, dirName)
-
-	fmt.Println(osuser.Username)
-	fmt.Println(architecture)
 
 }
