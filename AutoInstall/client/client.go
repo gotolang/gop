@@ -227,6 +227,7 @@ func sysInfo() (oSys string, arch string, osuser string, deskPath string, err er
 		return "", "", "", "", err
 	}
 	defer l.Close()
+
 	v, _, err = l.GetStringValue("Desktop")
 	if err != nil {
 		log.Println("registry GetStringValue Desktop")
