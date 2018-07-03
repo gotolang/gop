@@ -1,15 +1,42 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/BurntSushi/toml"
 )
 
-const appLoc string = "/Users/damao/Downloads/applist/"
+const appLoc string = "C:\\HIS\\HIS装机程序\\"
+
+type apps struct {
+	Apps map[string]app
+}
+
+type app struct {
+	Chinese string
+	Zip     string
+	Dir     string
+	Ini     string
+	Exe     string
+	Desktop bool
+}
+
+func decodeTOML(tomlfile string) (map[string]app, error) {
+	var applications apps
+
+	_, err := toml.DecodeFile(tomlfile, &applications)
+	if err != nil {
+		return nil, err
+	}
+
+	// fmt.Println(applications.Apps)
+	return applications.Apps, nil
+}
 
 func download(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
@@ -50,30 +77,24 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("=====================start=======================")
 		log.Println(r.Host + " request app list...")
 
-		zips, err := ioutil.ReadDir(appLoc)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		var apps []byte
-		// apps = make([]byte, 1024)
-		for i, v := range zips {
-			// fmt.Println(i, v.Name())
-			apps = append(apps, v.Name()...)
-			if i != len(zips)-1 {
-				apps = append(apps, ";"...)
-			}
-		}
-		for i, v := range apps {
-			fmt.Println(i, string(v))
-		}
-		n, err := w.Write(apps)
-		// fmt.Fprint(w, apps)
+		apps, err := decodeTOML("apps.toml")
 		if err != nil {
 			log.Println(err)
 		}
-		fmt.Println(n)
+
+		for i := range apps {
+			b, err := json.Marshal(apps[i])
+			if err != nil {
+				log.Println(err)
+			}
+
+			_, err = w.Write(b)
+
+			if err != nil {
+				log.Println(err)
+			}
+			// fmt.Println(n)
+		}
 		fmt.Println("====================end=========================")
 	}
 

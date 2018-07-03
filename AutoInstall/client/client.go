@@ -15,9 +15,10 @@ import (
 	"runtime"
 	"strings"
 
+	"gopkg.in/AlecAivazis/survey.v1"
+
 	ole "github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
-	"github.com/manifoldco/promptui"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -121,11 +122,8 @@ func download(url string, dir string, app string, goos string) (*os.File, error)
 	defer resp.Body.Close()
 
 	var file *os.File
-	if goos == "windows" {
-		file, err = os.Create(dir + "\\" + app)
-	} else {
-		file, err = os.Create(dir + "/" + app)
-	}
+
+	file, err = os.Create(dir + "\\" + app)
 
 	if err != nil {
 		return nil, err
@@ -140,7 +138,7 @@ func download(url string, dir string, app string, goos string) (*os.File, error)
 	return file, nil
 }
 
-func showApps(apps []string) (index int, result string, err error) {
+func showApps(apps []string) (result string, err error) {
 
 	// templates := promptui.SelectTemplates{
 	// 	Active:   `👉  {{ .Title | cyan | bold }}`,
@@ -148,16 +146,32 @@ func showApps(apps []string) (index int, result string, err error) {
 	// 	Selected: `{{ "✔" | green | bold }} {{ "Recipe" | bold }}: {{ .Title | cyan }}`,
 	// }
 
-	list := promptui.Select{
-		Label: "请选择要安装的程序",
-		Items: apps,
-		// Templates: &templates,
+	// list := promptui.Select{
+	// 	Label: "请选择要安装的程序",
+	// 	Items: apps,
+	// 	// Templates: &templates,
+	// }
+	// index, result, err = list.Run()
+	// if err != nil {
+	// 	return 0, "", err
+	// }
+	// return index, result, nil
+	var qs = []*survey.Question{
+		{
+			Name: "answer",
+			Prompt: &survey.Select{
+				Message: "选择要安装的程序",
+				Options: apps,
+			},
+		},
 	}
-	index, result, err = list.Run()
+	var answer string
+	err = survey.Ask(qs, &answer)
 	if err != nil {
-		return 0, "", err
+		return "", err
 	}
-	return index, result, nil
+	return answer, nil
+
 }
 
 func listApps(url string) (apps []string, err error) {
@@ -185,16 +199,32 @@ func listApps(url string) (apps []string, err error) {
 	return apps, nil
 }
 
-func areYouReady(url string) (index int, result string, err error) {
-	propmt := promptui.Select{
-		Label: "是否从 " + url + " 安装程序？",
-		Items: []string{"是", "否"},
+func areYouReady(url string) (result string, err error) {
+	// propmt := promptui.Select{
+	// 	Label: "是否从 " + url + " 安装程序？",
+	// 	Items: []string{"是", "否"},
+	// }
+	// index, result, err = propmt.Run()
+	// if err != nil {
+	// 	return 0, "", err
+	// }
+	// return index, result, nil
+	var qs = []*survey.Question{
+		{
+			Name: "yesorno",
+			Prompt: &survey.Select{
+				Message: "是否从 " + url + " 安装程序？",
+				Options: []string{"是", "否"},
+				Default: "是",
+			},
+		},
 	}
-	index, result, err = propmt.Run()
+	var yesorno string
+	err = survey.Ask(qs, &yesorno)
 	if err != nil {
-		return 0, "", err
+		return "", err
 	}
-	return index, result, nil
+	return yesorno, nil
 
 }
 
@@ -242,8 +272,8 @@ func main() {
 
 	operationSystem := runtime.GOOS
 
-	// url := "http://172.42.1.221:9090"
-	url := "http://localhost:9090"
+	url := "http://172.42.1.221:9090"
+	// url := "http://localhost:9090"
 	url4ListApps := url + "/applist"
 	url4Download := url + "/download?app="
 
@@ -252,17 +282,12 @@ func main() {
 	var oSys, arch, osuser, deskPath string
 	var err error
 
-	if operationSystem == "windows" {
-		download2Dir = "c:\\"
-		unzip2Dir = "c:\\"
-		oSys, arch, osuser, deskPath, err = sysInfo()
-		checkErrAtMainFunc(err)
-	} else {
-		download2Dir = "/Users/damao/"
-		unzip2Dir = "/Users/damao/"
-	}
+	download2Dir = "c:\\"
+	unzip2Dir = "c:\\"
+	oSys, arch, osuser, deskPath, err = sysInfo()
+	checkErrAtMainFunc(err)
 
-	_, result, err := areYouReady(url)
+	result, err := areYouReady(url)
 	checkErrAtMainFunc(err)
 	if result == "否" {
 		os.Exit(0)
@@ -276,7 +301,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	_, result, err = showApps(apps)
+	result, err = showApps(apps)
 	checkErrAtMainFunc(err)
 
 	file, err := download(url4Download, download2Dir, result, operationSystem)
