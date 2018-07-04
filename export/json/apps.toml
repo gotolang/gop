@@ -1,0 +1,35 @@
+title="APP Config"
+
+[apps]
+
+    [apps.phstock]
+    chinese="药库"
+    zip="phstock.zip"    
+    dir="phstock"
+    ini="phstore.ini"
+    exe="phstock.exe"
+    desktop=true
+
+    [apps.emrsdoctor]
+    chinese="EMRS自定义集成"
+    zip="emrsdoctor.zip"
+    dir="emrsdoctor"
+    ini="doctor.ini"
+    exe="emrs_doctor.exe"
+    desktop=false
+
+    [apps.outpdoct]
+    chinese="门诊医生站"
+    zip="outpdoct.zip"    
+    dir="outpdoct"    
+    ini="outpdoct.ini"
+    exe="outpdoct.exe"
+    desktop=false   
+
+    [apps.obilling]
+    chinese="门诊收费"
+    zip="obilling.zip"  # 压缩包的名称
+    dir="obilling"      # 压缩包内程序目录名称
+    ini="obilling.ini"  # 程序配置文件名称
+    exe="obilling.exe"  # 程序执行文件名称
+    desktop=true        # 是否创建桌面快捷方式
