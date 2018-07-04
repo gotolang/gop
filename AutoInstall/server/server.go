@@ -42,18 +42,6 @@ func download(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		r.ParseForm()
 		appName := r.Form.Get("app")
-		// fmt.Println("ioutil read file " + appLoc + appName)
-		// f, err := ioutil.ReadFile(appLoc + appName)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	return
-		// }
-		// fmt.Println("Start write to client...")
-		// _, err = w.Write(f)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	return
-		// }
 		file, err := os.Open(appLoc + appName)
 		if err != nil {
 			log.Println(err)
@@ -82,22 +70,16 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 		}
 
-		for i := range apps {
-			b, err := json.Marshal(apps[i])
-			if err != nil {
-				log.Println(err)
-			}
-
-			_, err = w.Write(b)
-
-			if err != nil {
-				log.Println(err)
-			}
-			// fmt.Println(n)
+		b, err := json.Marshal(apps)
+		if err != nil {
+			log.Println(err)
+		}
+		_, err = w.Write(b)
+		if err != nil {
+			log.Println(err)
 		}
 		fmt.Println("====================end=========================")
 	}
-
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {

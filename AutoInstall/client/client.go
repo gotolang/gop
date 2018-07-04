@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,8 +13,8 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime"
-	"strings"
 
 	"gopkg.in/AlecAivazis/survey.v1"
 
@@ -22,6 +23,17 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
+type app struct {
+	Chinese string
+	Zip     string
+	Dir     string
+	Ini     string
+	Exe     string
+	Desktop bool
+}
+
+var appMap map[string]app
+
 func checkErrAtMainFunc(err error) {
 	if err != nil {
 		log.Println(err)
@@ -29,8 +41,8 @@ func checkErrAtMainFunc(err error) {
 	}
 }
 
-func openINI(path string, filename string) error {
-	iniPath := filepath.Join(path, filename+"\\"+filename+".ini")
+func openINI(path string, key string) error {
+	iniPath := filepath.Join(path, appMap[key].Dir+"\\"+appMap[key].Ini)
 	cmd := exec.Command("cmd", "/C", "start", iniPath)
 	err := cmd.Start()
 	if err != nil {
@@ -39,7 +51,7 @@ func openINI(path string, filename string) error {
 	return nil
 }
 
-func genShortcut(goos, arch, user, path, dirname, deskPath string) error {
+func genShortcut(goos, arch, user, path, key, deskPath string) error {
 
 	// win7 : C:\Users\Administrator\Desktop
 	// winxp: C:\Documents and Settings\Administrator\桌面
@@ -63,8 +75,8 @@ func genShortcut(goos, arch, user, path, dirname, deskPath string) error {
 
 	var dst, src string
 
-	dst = deskPath + "\\phstock.lnk"
-	src = filepath.Join(path, dirname+"\\"+"phstock.exe")
+	dst = deskPath + "\\" + appMap[key].Chinese + ".lnk"
+	src = filepath.Join(path, appMap[key].Dir+"\\"+appMap[key].Exe)
 
 	cs, err := oleutil.CallMethod(wshell, "CreateShortcut", dst)
 	if err != nil {
@@ -76,9 +88,9 @@ func genShortcut(goos, arch, user, path, dirname, deskPath string) error {
 	return nil
 }
 
-func unzipLocalfile(unzip2Dir string, file *os.File, goos string) (bool, error) {
+func unzipLocalfile(unzip2Dir string, zipFile *os.File, goos string) (bool, error) {
 
-	rc, err := zip.OpenReader(file.Name())
+	rc, err := zip.OpenReader(zipFile.Name())
 	if err != nil {
 		return false, err
 	}
@@ -114,48 +126,31 @@ func unzipLocalfile(unzip2Dir string, file *os.File, goos string) (bool, error) 
 	return true, nil
 }
 
-func download(url string, dir string, app string, goos string) (*os.File, error) {
-	resp, err := http.Get(url + app)
+func downloadZip(url string, download2dir string, key string) (*os.File, error) {
+	resp, err := http.Get(url + appMap[key].Zip)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	var file *os.File
+	var zipFile *os.File
 
-	file, err = os.Create(dir + "\\" + app)
+	zipFile, err = os.Create(download2dir + appMap[key].Zip)
 
 	if err != nil {
 		return nil, err
 	}
 	// defer file.Close()
 
-	_, err = io.Copy(file, resp.Body)
+	_, err = io.Copy(zipFile, resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	return file, nil
+	return zipFile, nil
 }
 
 func showApps(apps []string) (result string, err error) {
-
-	// templates := promptui.SelectTemplates{
-	// 	Active:   `👉  {{ .Title | cyan | bold }}`,
-	// 	Inactive: `   {{ .Title | cyan }}`,
-	// 	Selected: `{{ "✔" | green | bold }} {{ "Recipe" | bold }}: {{ .Title | cyan }}`,
-	// }
-
-	// list := promptui.Select{
-	// 	Label: "请选择要安装的程序",
-	// 	Items: apps,
-	// 	// Templates: &templates,
-	// }
-	// index, result, err = list.Run()
-	// if err != nil {
-	// 	return 0, "", err
-	// }
-	// return index, result, nil
 	var qs = []*survey.Question{
 		{
 			Name: "answer",
@@ -170,7 +165,10 @@ func showApps(apps []string) (result string, err error) {
 	if err != nil {
 		return "", err
 	}
-	return answer, nil
+	r := regexp.MustCompile("([a-z]+)")
+	key := r.FindString(answer)
+
+	return key, nil
 
 }
 
@@ -182,7 +180,7 @@ func listApps(url string) (apps []string, err error) {
 	}
 	defer resp.Body.Close()
 
-	con, err := ioutil.ReadAll(resp.Body)
+	appsWithJSON, err := ioutil.ReadAll(resp.Body)
 
 	// var rb []byte
 	// _, err = resp.Body.Read(rb)
@@ -190,11 +188,18 @@ func listApps(url string) (apps []string, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(con) == 0 {
+	if len(appsWithJSON) == 0 {
 		return nil, errors.New("程序列表为空")
 	}
 
-	apps = strings.Split(string(con), ";")
+	// apps = strings.Split(string(con), ";")
+	err = json.Unmarshal(appsWithJSON, &appMap)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range appMap {
+		apps = append(apps, appMap[key].Chinese+"("+key+")")
+	}
 
 	return apps, nil
 }
@@ -272,7 +277,7 @@ func main() {
 
 	operationSystem := runtime.GOOS
 
-	url := "http://172.42.1.221:9090"
+	url := "http://172.42.1.221:8888"
 	// url := "http://localhost:9090"
 	url4ListApps := url + "/applist"
 	url4Download := url + "/download?app="
@@ -282,7 +287,7 @@ func main() {
 	var oSys, arch, osuser, deskPath string
 	var err error
 
-	download2Dir = "c:\\"
+	download2Dir = "c:\\his\\"
 	unzip2Dir = "c:\\"
 	oSys, arch, osuser, deskPath, err = sysInfo()
 	checkErrAtMainFunc(err)
@@ -301,23 +306,24 @@ func main() {
 		os.Exit(0)
 	}
 
-	result, err = showApps(apps)
+	key, err := showApps(apps)
 	checkErrAtMainFunc(err)
 
-	file, err := download(url4Download, download2Dir, result, operationSystem)
+	zipFile, err := downloadZip(url4Download, download2Dir, key)
 	checkErrAtMainFunc(err)
-	defer file.Close()
+	defer zipFile.Close()
 	fmt.Println("Download complete...")
 
-	_, err = unzipLocalfile(unzip2Dir, file, operationSystem)
+	_, err = unzipLocalfile(unzip2Dir, zipFile, operationSystem)
 	checkErrAtMainFunc(err)
 	fmt.Println("Unzip complete...")
 
-	dirName := strings.TrimPrefix(strings.TrimSuffix(file.Name(), ".zip"), "c:\\\\")
-	err = openINI(unzip2Dir, dirName)
+	// dirName := strings.TrimPrefix(strings.TrimSuffix(zipFile.Name(), ".zip"), "c:\\\\")
+	// dirName := appMap[key].Dir
+	err = openINI(unzip2Dir, key)
 	checkErrAtMainFunc(err)
 
-	err = genShortcut(oSys, arch, osuser, unzip2Dir, dirName, deskPath)
+	err = genShortcut(oSys, arch, osuser, unzip2Dir, key, deskPath)
 	checkErrAtMainFunc(err)
 
 }
