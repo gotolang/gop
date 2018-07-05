@@ -24,7 +24,7 @@ title="APP Config"
     dir="outpdoct"    
     ini="outpdoct.ini"
     exe="outpdoct.exe"
-    desktop=false   
+    desktop=true   
 
     [apps.obilling]
     chinese="门诊收费"

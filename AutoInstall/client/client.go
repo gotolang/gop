@@ -76,8 +76,8 @@ func genShortcut(goos, arch, user, path, key, deskPath string) error {
 	var dst, src string
 
 	dst = deskPath + "\\" + appMap[key].Chinese + ".lnk"
-	src = filepath.Join(path, appMap[key].Dir+"\\"+appMap[key].Exe)
-
+	// src = filepath.Join(path, appMap[key].Dir+"\\"+appMap[key].Exe)
+	src = filepath.Join(path, appMap[key].Dir+"\\autoupdata_client.exe") //指向自动更新程序
 	cs, err := oleutil.CallMethod(wshell, "CreateShortcut", dst)
 	if err != nil {
 		return err
@@ -204,21 +204,13 @@ func listApps(url string) (apps []string, err error) {
 	return apps, nil
 }
 
-func areYouReady(url string) (result string, err error) {
-	// propmt := promptui.Select{
-	// 	Label: "是否从 " + url + " 安装程序？",
-	// 	Items: []string{"是", "否"},
-	// }
-	// index, result, err = propmt.Run()
-	// if err != nil {
-	// 	return 0, "", err
-	// }
-	// return index, result, nil
+func areYouReady() (result string, err error) {
+
 	var qs = []*survey.Question{
 		{
 			Name: "yesorno",
 			Prompt: &survey.Select{
-				Message: "是否从 " + url + " 安装程序？",
+				Message: "开始安装程序？",
 				Options: []string{"是", "否"},
 				Default: "是",
 			},
@@ -287,12 +279,12 @@ func main() {
 	var oSys, arch, osuser, deskPath string
 	var err error
 
-	download2Dir = "c:\\his\\"
+	download2Dir = "c:\\"
 	unzip2Dir = "c:\\"
 	oSys, arch, osuser, deskPath, err = sysInfo()
 	checkErrAtMainFunc(err)
 
-	result, err := areYouReady(url)
+	result, err := areYouReady()
 	checkErrAtMainFunc(err)
 	if result == "否" {
 		os.Exit(0)
@@ -318,12 +310,13 @@ func main() {
 	checkErrAtMainFunc(err)
 	fmt.Println("Unzip complete...")
 
-	// dirName := strings.TrimPrefix(strings.TrimSuffix(zipFile.Name(), ".zip"), "c:\\\\")
-	// dirName := appMap[key].Dir
 	err = openINI(unzip2Dir, key)
 	checkErrAtMainFunc(err)
-
-	err = genShortcut(oSys, arch, osuser, unzip2Dir, key, deskPath)
-	checkErrAtMainFunc(err)
+	if appMap[key].Desktop {
+		err = genShortcut(oSys, arch, osuser, unzip2Dir, key, deskPath)
+		checkErrAtMainFunc(err)
+	}
+	fmt.Println()
+	fmt.Scanln("按任意键退出...")
 
 }
