@@ -24,12 +24,13 @@ import (
 )
 
 type app struct {
-	Chinese string
-	Zip     string
-	Dir     string
-	Ini     string
-	Exe     string
-	Desktop bool
+	Chinese    string
+	Zip        string
+	Dir        string
+	Ini        string
+	Exe        string
+	Desktop    bool
+	AutoUpdate bool
 }
 
 var appMap map[string]app
@@ -76,8 +77,12 @@ func genShortcut(goos, arch, user, path, key, deskPath string) error {
 	var dst, src string
 
 	dst = deskPath + "\\" + appMap[key].Chinese + ".lnk"
-	// src = filepath.Join(path, appMap[key].Dir+"\\"+appMap[key].Exe)
-	src = filepath.Join(path, appMap[key].Dir+"\\autoupdata_client.exe") //指向自动更新程序
+	if appMap[key].AutoUpdate {
+		src = filepath.Join(path, appMap[key].Dir+"\\autoupdata_client.exe") //指向自动更新程序
+	} else {
+		src = filepath.Join(path, appMap[key].Dir+"\\"+appMap[key].Exe)
+	}
+
 	cs, err := oleutil.CallMethod(wshell, "CreateShortcut", dst)
 	if err != nil {
 		return err
@@ -155,8 +160,9 @@ func showApps(apps []string) (result string, err error) {
 		{
 			Name: "answer",
 			Prompt: &survey.Select{
-				Message: "选择要安装的程序",
-				Options: apps,
+				Message:  "选择要安装的程序",
+				Options:  apps,
+				PageSize: 10,
 			},
 		},
 	}

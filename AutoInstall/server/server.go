@@ -18,12 +18,13 @@ type apps struct {
 }
 
 type app struct {
-	Chinese string
-	Zip     string
-	Dir     string
-	Ini     string
-	Exe     string
-	Desktop bool
+	Chinese    string
+	Zip        string
+	Dir        string
+	Ini        string
+	Exe        string
+	Desktop    bool
+	AutoUpdate bool
 }
 
 func decodeTOML(tomlfile string) (map[string]app, error) {
