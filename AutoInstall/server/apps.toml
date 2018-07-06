@@ -9,7 +9,8 @@ title="APP Config"
     ini="phstore.ini"
     exe="phstock.exe"
     desktop=true
-
+    autoUpdate=true     # 是否有自动更新程序
+    
     [apps.emrsdoctor]
     chinese="EMRS自定义集成"
     zip="emrsdoctor.zip"
@@ -17,6 +18,7 @@ title="APP Config"
     ini="doctor.ini"
     exe="emrs_doctor.exe"
     desktop=false
+    autoUpdate=true     # 是否有自动更新程序
 
     [apps.outpdoct]
     chinese="门诊医生站"
@@ -25,6 +27,7 @@ title="APP Config"
     ini="outpdoct.ini"
     exe="outpdoct.exe"
     desktop=true   
+    autoUpdate=true     # 是否有自动更新程序
 
     [apps.obilling]
     chinese="门诊收费"
@@ -33,3 +36,4 @@ title="APP Config"
     ini="obilling.ini"  # 程序配置文件名称
     exe="obilling.exe"  # 程序执行文件名称
     desktop=true        # 是否创建桌面快捷方式
+    autoUpdate=true     # 是否有自动更新程序
