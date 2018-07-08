@@ -1,0 +1,9 @@
+title = "MR Query"
+
+[MR]
+admitStartTime = 2018-01-01T00:00:00-08:00 # pacific standard time
+admitEndTime = 2018-07-01T23:59:59-08:00
+disStartTime = 2018-01-01T00:00:00-08:00
+disEndTime = 2018-07-01T23:59:59-08:00
+deptCode = ["2801", "2301"]
+chargeType = ["异地医保", "省内异地", "广州医保"]
