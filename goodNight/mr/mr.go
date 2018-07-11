@@ -1,28 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"time"
 	"bytes"
-	"io/ioutil"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"time"
 
+	"github.com/gotolang/nt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-oci8"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
-	"github.com/gotolang/nt"
 )
 
 // Basic 病人基本信息 pat_master_index
 type Basic struct {
-	PatientID   string `db:"PATIENT_ID"`   // 病人ID
-	InpNo       sql.NullString `db:"INP_NO"`    // 住院号
-	Name        string `db:"NAME"`    // 姓名
-	Sex         string `db:"SEX"`    // 性别
-	DateOfBirth nt.NullTime `db:"DATE_OF_BIRTH"` //年龄
+	PatientID   string         `db:"PATIENT_ID"`    // 病人ID
+	InpNo       sql.NullString `db:"INP_NO"`        // 住院号
+	Name        string         `db:"NAME"`          // 姓名
+	Sex         string         `db:"SEX"`           // 性别
+	DateOfBirth nt.NullTime    `db:"DATE_OF_BIRTH"` //年龄
 }
 
 // Hospitalization 病人住院信息 pat_visit
@@ -33,11 +33,11 @@ type Hospitalization struct {
 	// Sex         string `db:"SEX"`    // 性别
 	// DateOfBirth nt.NullTime `db:"DATE_OF_BIRTH"` //年龄
 	Basic
-	VisitID         int  `db:"VISIT_ID"`
-	DateOfAdmit     time.Time  `db:"ADMISSION_DATE_TIME"`
-	DateOfDischarge nt.NullTime  `db:"DISCHARGE_DATE_TIME"`
-	DeptOfAdmit     string  `db:"DEPT_ADMISSION_TO"`// 入院科室
-	DeptOfDischarge sql.NullString  `db:"DEPT_DISCHARGE_FROM"` // 出院科室
+	VisitID         int            `db:"VISIT_ID"`
+	DateOfAdmit     time.Time      `db:"ADMISSION_DATE_TIME"`
+	DateOfDischarge nt.NullTime    `db:"DISCHARGE_DATE_TIME"`
+	DeptOfAdmit     string         `db:"DEPT_ADMISSION_TO"`   // 入院科室
+	DeptOfDischarge sql.NullString `db:"DEPT_DISCHARGE_FROM"` // 出院科室
 }
 
 // DiagType 诊断类型字典 diagnosis_type_dict
@@ -49,32 +49,32 @@ type DiagType struct {
 // ICD 诊断编码 diagnosis_dict
 type ICD struct {
 	Code sql.NullString `db:"DIAGNOSIS_CODE"` // ICD10编码
-	Desc string `db:"DIAGNOSIS_DESC"`// ICD10诊断
+	Desc string         `db:"DIAGNOSIS_DESC"` // ICD10诊断
 }
 
 // Diagnosis 诊断信息 diagnosis
 type Diagnosis struct {
 	TypeOfDiag string `db:"DIAGNOSIS_TYPE"`
-	No int `db:"DIAGNOSIS_NO"`
+	No         int    `db:"DIAGNOSIS_NO"`
 	ICD
-	DateOfDiag    time.Time `db:"DIAGNOSIS_DATE"`
-	DaysOfTreat   sql.NullInt64 `db:"TREAT_DAYS"`
+	DateOfDiag    time.Time      `db:"DIAGNOSIS_DATE"`
+	DaysOfTreat   sql.NullInt64  `db:"TREAT_DAYS"`
 	ResultOfTreat sql.NullString `db:"TREAT_RESULT"`
 }
 
 // Operation 手术信息 operation
 type Operation struct {
-	OperationNo string `db:"OPERATION_NO"`
-	OperationCode string `db:"OPERATION_CODE"`
-	OperationDesc string `db:"OPERATION_DESC"`
-	DateOfOperation nt.NullTime `db:"OPERATING_DATE"`
-	Heal sql.NullString `db:"HEAL"`
-	WoundGrade sql.NullString `db:"WOUND_GRADE"`
-	AnaesthesiaMethod sql.NullString `db:"ANAESTHESIA_METHOD"`
-	Operator sql.NullString `db:"OPERATOR"`
-	FirstAssistant sql.NullString `db:"FIRST_ASSISTANT"`
-	SecondAssistant sql.NullString `db:"SECOND_ASSISTANT"`
-	Anesthetist sql.NullString `db:"ANESTHETIST"`
+	OperationNo        string         `db:"OPERATION_NO"`
+	OperationCode      string         `db:"OPERATION_CODE"`
+	OperationDesc      string         `db:"OPERATION_DESC"`
+	DateOfOperation    nt.NullTime    `db:"OPERATING_DATE"`
+	Heal               sql.NullString `db:"HEAL"`
+	WoundGrade         sql.NullString `db:"WOUND_GRADE"`
+	AnaesthesiaMethod  sql.NullString `db:"ANAESTHESIA_METHOD"`
+	Operator           sql.NullString `db:"OPERATOR"`
+	FirstAssistant     sql.NullString `db:"FIRST_ASSISTANT"`
+	SecondAssistant    sql.NullString `db:"SECOND_ASSISTANT"`
+	Anesthetist        sql.NullString `db:"ANESTHETIST"`
 	DoctorOfAnesthesia sql.NullString `db:"ANESTHESIA_DOCTOR"`
 }
 
@@ -103,7 +103,7 @@ type MR struct {
 	// Tms   []Tumor
 }
 
-func mr2json(mr interface{}) (string, error){
+func mr2json(mr interface{}) (string, error) {
 	b, err := json.Marshal(mr)
 	if err != nil {
 		log.Println(err)
@@ -136,7 +136,7 @@ func generateMrRecords() {
 		log.Println(err)
 		return
 	}
-	
+
 	sqlText := `select x.patient_id,
 					x.inp_no,
 					x.name,
@@ -158,11 +158,11 @@ func generateMrRecords() {
 	}
 
 	defer rows.Close()
-	
+
 	var patVisit Hospitalization
 	// var patVisits []Hospitalization
 	for rows.Next() {
-	
+
 		err = rows.StructScan(&patVisit)
 		if err != nil {
 			log.Println(err)
@@ -171,7 +171,7 @@ func generateMrRecords() {
 
 		// fmt.Println(patVisit)
 		mr.Hospitalization = patVisit
-		
+
 		var opers []Operation
 		var oper Operation
 
@@ -199,7 +199,7 @@ func generateMrRecords() {
 		defer rows2.Close()
 
 		for rows2.Next() {
-			
+
 			err = rows2.StructScan(&oper)
 			if err != nil {
 				log.Println(err)
@@ -229,7 +229,7 @@ func generateMrRecords() {
 		defer rows3.Close()
 
 		for rows3.Next() {
-			
+
 			err = rows3.StructScan(&diag)
 			if err != nil {
 				log.Println(err)
