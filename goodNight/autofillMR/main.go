@@ -1,25 +1,27 @@
-package main 
+package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
-	"database/sql"
+	"os"
+
 	_ "github.com/denisenkom/go-mssqldb"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-oci8"
 )
 
 type mrBasic struct {
-	AKB020 string `db:"AKB020"`
-	AKB026 string `db:"AKB026"`
-	YKC700 string `db:"YKC700"`
-	YZY201 string `db:"YZY201"`
-	PKA435 string `db:"PKA435"`
-	PKA439 sql.NullString `db:"PKA439"`
-	BZ1 sql.NullString `db:"BZ1"`
-	BZ2 sql.NullString `db:"BZ2"`
-	BZ3 sql.NullString `db:"BZ3"`
-	DRBZ sql.NullInt64 `db:"DRBZ"`
+	AKB020      string         `db:"AKB020"`
+	AKB026      string         `db:"AKB026"`
+	YKC700      string         `db:"YKC700"`
+	YZY201      string         `db:"YZY201"`
+	PKA435      string         `db:"PKA435"`
+	PKA439      sql.NullString `db:"PKA439"`
+	BZ1         sql.NullString `db:"BZ1"`
+	BZ2         sql.NullString `db:"BZ2"`
+	BZ3         sql.NullString `db:"BZ3"`
+	DRBZ        sql.NullInt64  `db:"DRBZ"`
 	EXPLANATION sql.NullString `db:"EXPLANATION"`
 }
 
@@ -37,6 +39,13 @@ func main() {
 		return
 	}
 	defer msDB.Close()
+
+	logFile, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Println(err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
 
 	sqlTextms := `SELECT A.AKB020
 					,A.AKB026
@@ -78,11 +87,11 @@ func main() {
 					where b.ykc700 = :jydjh
 						and b.yzy201 = :no
 						and b.pka435 = :item`
-	
+
 	sqlText4Update := `UPDATE [yy005106].[dbo].[HIS_SNYD_BASYBRXX_TEST]
 							SET PKA439 = $1
 						WHERE AKB020 = '005106' AND YKC700 = $2 AND YZY201 = $3`
-	
+
 	for _, v := range basics {
 		// fmt.Println(i, v.YKC700, v.YZY201, v.PKA435, v.EXPLANATION.String)
 		var valueFromHIS sql.NullString
