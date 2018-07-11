@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
 	_ "github.com/denisenkom/go-mssqldb"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-oci8"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 type mrBasic struct {
@@ -23,6 +27,16 @@ type mrBasic struct {
 	BZ3         sql.NullString `db:"BZ3"`
 	DRBZ        sql.NullInt64  `db:"DRBZ"`
 	EXPLANATION sql.NullString `db:"EXPLANATION"`
+}
+
+func gbk2Utf8(str []byte) (utf8Str []byte, err error) {
+	reader := transform.NewReader(bytes.NewReader(str), simplifiedchinese.GBK.NewDecoder())
+	utf8Str, err = ioutil.ReadAll(reader)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	return utf8Str, nil
 }
 
 func main() {
@@ -99,8 +113,9 @@ func main() {
 		if err != nil {
 			log.Printf("oracle database scan error, because %s", err)
 		}
-		log.Println(v.YKC700, v.YZY201, v.PKA435, v.EXPLANATION.String, valueFromHIS.String)
-		result, err := msDB.Exec(sqlText4Update, valueFromHIS.String, v.YKC700, v.YZY201)
+		hisValue := string(gbk2Utf8([]byte(valueFromHIS.String)))
+		log.Println(v.YKC700, v.YZY201, v.PKA435, v.EXPLANATION.String, hisValue)
+		result, err := msDB.Exec(sqlText4Update, hisValue, v.YKC700, v.YZY201)
 		if err != nil {
 			log.Printf("sqlserver database update error, because %s", err)
 		}
