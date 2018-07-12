@@ -132,7 +132,7 @@ func main() {
 	sqlText4Update := `UPDATE [yy005106].[dbo].[HIS_SNYD_BASYBRXX_TEST]
 							SET PKA439 = $1
 						WHERE AKB020 = '005106' AND YKC700 = $2 AND YZY201 = $3`
-
+	var rowCount int
 	for _, v := range basics {
 		// fmt.Println(i, v.YKC700, v.YZY201, v.PKA435, v.EXPLANATION.String)
 		var valueFromHIS sql.NullString
@@ -146,7 +146,8 @@ func main() {
 		if err != nil {
 			log.Printf("sqlserver database update error, because %s", err)
 		}
-		fmt.Println(result.RowsAffected())
+		rowCount += result.RowsAffected()
+		fmt.Println("row ", rowCount, " updated")
 	}
 	fmt.Println("update complete")
 	fmt.Scanln()
