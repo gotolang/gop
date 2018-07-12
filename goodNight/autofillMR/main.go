@@ -141,7 +141,13 @@ func main() {
 			log.Printf("oracle database scan error, because %s", err)
 		}
 		hisValue := string(gbk2Utf8([]byte(valueFromHIS.String)))
-		log.Println(v.YKC700, v.YZY201, v.PKA435, v.EXPLANATION.String, hisValue)
+
+		if len(hisValue) == 0 {
+			log.Println(v.YKC700, v.YZY201, v.PKA435, v.EXPLANATION.String+" is Null")
+			continue
+		} else {
+			log.Println(v.YKC700, v.YZY201, v.PKA435, v.EXPLANATION.String, hisValue)
+		}
 		result, err := msDB.Exec(sqlText4Update, hisValue, v.YKC700, v.YZY201)
 		if err != nil {
 			log.Printf("sqlserver database update error, because %s", err)
