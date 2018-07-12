@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
+
+	"gopkg.in/AlecAivazis/survey.v1"
 
 	_ "github.com/denisenkom/go-mssqldb"
 	"github.com/jmoiron/sqlx"
@@ -96,6 +99,30 @@ func main() {
 
 	fmt.Printf("Need to update %d rows. Are you sure?\n", len(basics))
 
+	var opt string
+
+	qs = []*survey.Question{
+		{
+			Name: "opt",
+			Prompt: &survey.Select{
+				Message: strconv.Itoa(len(basics)) + " rows will be updated, are you sure?",
+				Options: []string{"Yes", "No"},
+				Default: "No",
+			},
+		},
+	}
+
+	err = survey.Ask(qs, &opt)
+	if err != nil {
+		log.Println("survey.Ask error, ", err)
+		return
+	}
+
+	if opt == "No" {
+		log.Println("user canceled!")
+		return
+	}
+
 	sqlTextorcl := `select b.pka439
 						from INPBILL.his_snyd_basybrxx b
 					where b.ykc700 = :jydjh
@@ -121,5 +148,7 @@ func main() {
 		}
 		fmt.Println(result.RowsAffected())
 	}
+	fmt.Println("update complete")
+	fmt.Scanln()
 
 }
